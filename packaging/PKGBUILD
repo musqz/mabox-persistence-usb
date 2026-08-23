@@ -21,7 +21,7 @@ optdepends=(
 makedepends=('python-build' 'python-installer' 'python-hatchling')
 checkdepends=('python-pytest')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP') # placeholder until v0.2.0 is tagged -- see ~/.claude/reference/arch-aur-release.md
+sha256sums=('141932d0b81dae1d9c49803e52548d9fdd564ef6cbbe4d5122b7f15593baf8b5')
 
 build() {
     cd "$pkgname-$pkgver"
