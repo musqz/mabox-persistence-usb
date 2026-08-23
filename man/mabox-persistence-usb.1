@@ -1,0 +1,115 @@
+.TH MABOX-PERSISTENCE-USB 1 "2026-08-23" "mabox-persistence-usb @VERSION@" "User Commands"
+.SH NAME
+mabox-persistence-usb \- write a mabox-snapshot ISO to a USB stick with a persistent overlay partition
+.SH SYNOPSIS
+.B mabox-persistence-usb
+.RI [ -h ]
+.I command
+.RI [ args ...]
+.SH DESCRIPTION
+.B mabox-persistence-usb
+writes a
+.B mabox-snapshot
+ISO to a removable USB disk, then appends one more partition \(em
+.BR ext4 ,
+labeled
+.BR MABOX_PERSIST ,
+sized to all remaining free space by default \(em for a writable overlay so
+changes made while running from the stick survive a reboot.
+.PP
+Every
+.B write
+run wipes and rebuilds the whole target device unconditionally. There is no
+mode that preserves an existing overlay across runs \(em re-running
+.B write
+is itself the reset/reclaim-space mechanism.
+.PP
+The boot-time mechanism that actually mounts
+.B MABOX_PERSIST
+as a writable overlay (an initramfs hook,
+.IR miso_persist )
+lives in the
+.B mabox-snapshot
+package, not this one, and is not implemented yet. Until it ships, a stick
+written by this tool boots exactly like a plain mabox-snapshot ISO and the
+persistence partition is present but unused \(em
+.B write
+prints an explicit warning about this every run.
+.SH COMMANDS
+.SS version
+Print the installed version.
+.SS doctor
+Check prerequisites (required tools, currently-attached removable USB
+disks). Read-only, no root needed.
+.SS "devices list"
+List currently-attached removable USB disks, with full identification
+(size, vendor, model, serial, existing partitions). Read-only, no root
+needed.
+.SS "inspect ISO"
+Validate an ISO before ever touching a device: ISO9660 volume-ID match,
+filename convention, rootfs encryption status, checksum verification, and
+persistence boot-hook support. Read-only, no root needed.
+.SS "write ISO [options]"
+Write ISO to a USB disk plus a
+.B MABOX_PERSIST
+overlay partition. Requires root.
+.TP
+.BR \-\-device " " \fIPATH\fR
+Target disk explicitly (e.g.
+.IR /dev/sdb )
+instead of the interactive insert/detect flow. Still passes the full
+removable-USB-only hard filter and both safety guards.
+.TP
+.BR \-y ", " \-\-yes
+Non-interactive: skip the typed confirmation and the physical
+unplug/replug re-verification. The removable-USB-only filter and both
+safety guards always still apply.
+.TP
+.B \-\-force\-unmount
+With
+.BR \-\-yes ,
+automatically unmount mounted partitions on the target instead of erroring.
+.TP
+.BR \-\-persist\-size " " \fISIZE\fR
+Cap the
+.B MABOX_PERSIST
+partition instead of using all remaining space (e.g.
+.IR 50GiB ).
+.TP
+.B \-\-no\-persist
+Write only the raw ISO bytes; skip creating
+.B MABOX_PERSIST
+entirely.
+.TP
+.B \-\-force
+Bypass the ISO volume-ID soft check. Never bypasses the removable/USB
+filter, the critical-mount guard, or the 2TiB size guard \(em those have
+no override.
+.TP
+.B \-\-skip\-reinsert\-check
+Interactive-mode-only: skip the physical unplug/replug re-verification
+(e.g. when testing against a VM-attached virtual disk).
+.TP
+.B \-\-no\-verify
+Skip the post-write verification pass.
+.TP
+.B \-\-dry\-run
+Resolve the target device and print every command that would run; touch
+nothing.
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B 1
+Generic error, or the user aborted a confirmation.
+.TP
+.B 2
+A hard safety filter or guard rejected the device (non-removable/non-USB
+target, a critical mountpoint, or a device at/beyond the 2TiB MBR limit).
+Never bypassable by any flag.
+.TP
+.B 3
+The write completed but the post-write verification pass found a problem.
+.SH SEE ALSO
+.BR mabox-snapshot (1)

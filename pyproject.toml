@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mabox-persistence-usb"
+version = "0.1.0"
+description = "Write a mabox-snapshot ISO to a USB stick with a persistent overlay partition"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "musqz" }]
+
+[project.urls]
+Homepage = "https://github.com/musqz/mabox-persistence-usb"
+
+[project.scripts]
+mabox-persistence-usb = "mabox_persistence_usb.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mabox_persistence_usb"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]
