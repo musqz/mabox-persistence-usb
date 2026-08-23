@@ -73,10 +73,8 @@ def cmd_inspect(args: argparse.Namespace) -> int:
         print(f"checksum:         {report.checksum_path} ({'OK' if report.checksum_ok else 'MISMATCH'})")
     else:
         print("checksum:         no .sha256 sidecar found alongside the ISO")
-    print(
-        f"persistence hook: {report.hook_support.value} -- mabox-snapshot has not shipped "
-        f"miso_persist support yet as of this tool's {__version__}"
-    )
+    print(f"persistence hook: {report.hook_support.value} (plain MABOX_PERSIST)")
+    print(f"persistence hook: {report.encrypted_hook_support.value} (--encrypt-persist)")
     return 0
 
 
@@ -129,6 +127,37 @@ def _cmd_write(args: argparse.Namespace) -> int:
         )
         return 1
 
+    if not args.no_persist:
+        if args.encrypt_persist:
+            required_support = report.encrypted_hook_support
+            unsupported_detail = (
+                "no mabox-snapshot build (released or otherwise) has a miso_persist LUKS-unlock "
+                "branch yet -- an encrypted MABOX_PERSIST cannot be used at boot regardless of "
+                "which mabox-snapshot built this ISO"
+            )
+        else:
+            required_support = report.hook_support
+            unsupported_detail = (
+                "this ISO's mabox-snapshot build predates miso_persist support -- rebuild with a "
+                "newer mabox-snapshot to enable persistence"
+            )
+        if required_support is not isoinspect.HookSupport.SUPPORTED:
+            verdict = required_support.value
+            if args.force:
+                print(
+                    f"warning: {iso_path} does not advertise persistence support ({verdict}) -- "
+                    f"{unsupported_detail}. Proceeding anyway because --force was passed; "
+                    f"MABOX_PERSIST will be created but the stick will boot exactly like a plain ISO."
+                )
+            else:
+                print(
+                    f"error: {iso_path} does not advertise persistence support ({verdict}) -- "
+                    f"{unsupported_detail}. Pass --force to create MABOX_PERSIST anyway (it will "
+                    f"not be used at boot), or --no-persist for a plain non-persistent stick.",
+                    file=sys.stderr,
+                )
+                return 1
+
     try:
         disk = _resolve_target_device(args)
     except (safety.AbortedError, safety.NoDeviceFoundError, safety.AmbiguousDeviceError) as e:
@@ -170,18 +199,6 @@ def _cmd_write(args: argparse.Namespace) -> int:
         else:
             print("plan:    --no-persist -- no overlay partition will be created")
         return 0
-
-    if not args.no_persist:
-        hook_note = (
-            " mabox-snapshot's miso_persist LUKS-unlock branch does not exist yet either."
-            if args.encrypt_persist else ""
-        )
-        print(
-            "warning: persistence boot-hook support cannot be verified yet -- mabox-snapshot "
-            "does not ship the miso_persist hook as of this tool's "
-            f"{__version__}. MABOX_PERSIST will be created, but the stick will boot exactly "
-            f"like a plain ISO until mabox-snapshot adds hook support.{hook_note}"
-        )
 
     if any(p.mountpoints for p in disk.partitions):
         if args.yes:
@@ -323,8 +340,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     write_parser.add_argument(
         "--force", action="store_true",
-        help="Bypass the ISO volume-id soft check. Never bypasses the removable/USB filter, "
-             "critical-mount guard, or the 2TiB size guard.",
+        help="Bypass the ISO volume-id soft check and the persistence boot-hook support check "
+             "(creates MABOX_PERSIST even on an ISO that won't use it at boot). Never bypasses "
+             "the removable/USB filter, critical-mount guard, or the 2TiB size guard.",
     )
     write_parser.add_argument(
         "--skip-reinsert-check", action="store_true",

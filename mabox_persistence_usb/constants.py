@@ -8,14 +8,19 @@ from pathlib import Path
 ISO_VOLID = "MABOX_LIVE"
 
 # The overlay partition's fixed ext4 label. Never user-overridable -- the
-# (not-yet-implemented) miso_persist boot hook in mabox-snapshot looks it up
-# by this exact label via /dev/disk/by-label/MABOX_PERSIST.
+# miso_persist boot hook in mabox-snapshot (merged upstream, not yet in a
+# tagged release) looks it up by this exact label via
+# /dev/disk/by-label/MABOX_PERSIST.
 PERSIST_LABEL = "MABOX_PERSIST"
 
 # dm-crypt mapper name for an --encrypt-persist overlay. Hardcoded and must
-# match whatever the future miso_persist LUKS branch uses to `cryptsetup
-# open` it at boot -- same manual-sync-across-two-repos precedent as
-# mabox_snapshot.constants.ISO_LUKS_MAPPER_NAME ("mabox_rootfs").
+# match whatever a future miso_persist LUKS-unlock branch uses to
+# `cryptsetup open` it at boot -- same manual-sync-across-two-repos
+# precedent as mabox_snapshot.constants.ISO_LUKS_MAPPER_NAME ("mabox_rootfs").
+# No such branch exists yet: the merged miso_persist hook only looks for a
+# plain ext4 MABOX_PERSIST by label, so an --encrypt-persist stick is not
+# usable at boot until one is added (see MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION
+# below).
 PERSIST_LUKS_MAPPER_NAME = "mabox_persist"
 
 # 1 MiB alignment for the appended partition's start offset -- standard
@@ -54,13 +59,30 @@ ISO9660_PVD_OFFSET = 0x8000
 ISO9660_VOLID_OFFSET_IN_PVD = 40
 ISO9660_VOLID_LENGTH = 32
 
-# Proposed marker for the not-yet-implemented miso_persist hook support
-# check (see docs/superpowers/specs/2026-08-20-persistent-usb-design.md and
+# Marker for the miso_persist hook support check (see
+# docs/superpowers/specs/2026-08-20-persistent-usb-design.md and
 # isoinspect.evaluate_hook_support()) -- a plain text file inside the ISO9660
 # tree, parallel to isobuild.py's existing ".miso" marker convention, rather
-# than requiring this tool to decompress and walk the initramfs cpio.
+# than requiring this tool to decompress and walk the initramfs cpio. Matches
+# mabox_snapshot.constants.PERSIST_HOOK_MARKER_RELPATH /
+# PERSIST_HOOK_VERSION exactly (merged in mabox-snapshot PR #61, 2026-08-23 --
+# not yet in a tagged mabox-snapshot release as of this tool's version).
 PERSIST_HOOK_MARKER_PATH = "mabox/.persist-hook-version"
+
+# Version 1: plain (unencrypted) MABOX_PERSIST support -- the merged
+# miso_persist hook overlays a plain ext4 partition found by label.
 MIN_SUPPORTED_HOOK_VERSION = 1
+
+# No shipped or merged mabox-snapshot version advertises this yet: the
+# merged miso_persist hook has no cryptsetup/LUKS-unlock branch at all, so it
+# cannot find or open an --encrypt-persist partition (which shows up as
+# TYPE=crypto_LUKS, not a labeled ext4 volume, until unlocked). Set one
+# version ahead of MIN_SUPPORTED_HOOK_VERSION so isoinspect.evaluate_hook_support()
+# correctly reports UNSUPPORTED for --encrypt-persist against every ISO today,
+# without conflating "supports plain persistence" with "supports encrypted
+# persistence" -- bump this only once mabox-snapshot ships and advertises a
+# real LUKS-unlock branch.
+MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION = 2
 
 # Physical remove/reinsert re-verification timing (safety.wait_for_reinsert).
 REINSERT_DISAPPEAR_TIMEOUT_S = 30.0

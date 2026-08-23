@@ -9,6 +9,16 @@
   Mutually exclusive with `--no-persist`.
 - Post-write verification now checks for `TYPE=crypto_LUKS` on an encrypted
   persistence partition instead of its (LUKS-hidden) ext4 label.
+- Persistence boot-hook support is now a real pre-flight gate on `write`:
+  mabox-snapshot's `miso_persist` hook and `mabox/.persist-hook-version`
+  marker merged upstream (mabox-snapshot#61) — `write` refuses to create
+  `MABOX_PERSIST` by default on an ISO that doesn't advertise support
+  (`--force` to override, `--no-persist` to skip persistence entirely).
+  `--encrypt-persist` is gated separately and more strictly: the merged
+  `miso_persist` hook has no LUKS-unlock branch yet, so it's refused by
+  default regardless of which mabox-snapshot built the ISO, until one ships.
+- `inspect` now reports plain and encrypted persistence-hook support
+  separately.
 
 ## 0.1.0
 

@@ -127,3 +127,25 @@ def test_evaluate_hook_support_unknown_when_marker_unparseable():
     members = [constants.PERSIST_HOOK_MARKER_PATH]
     result = isoinspect.evaluate_hook_support(members, extract_member=lambda m: "not-a-number")
     assert result is isoinspect.HookSupport.UNKNOWN
+
+
+def test_evaluate_hook_support_against_encrypted_threshold_unsupported_at_current_marker_version():
+    # As of mabox-snapshot's merged miso_persist hook, every ISO advertises
+    # marker version 1 (plain persistence only, no LUKS-unlock branch) --
+    # checked against MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION this must read
+    # UNSUPPORTED even though the same marker reads SUPPORTED for plain use.
+    members = [constants.PERSIST_HOOK_MARKER_PATH]
+    result = isoinspect.evaluate_hook_support(
+        members, extract_member=lambda m: "1", min_version=constants.MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION
+    )
+    assert result is isoinspect.HookSupport.UNSUPPORTED
+
+
+def test_evaluate_hook_support_against_encrypted_threshold_supported_once_version_bumped():
+    members = [constants.PERSIST_HOOK_MARKER_PATH]
+    result = isoinspect.evaluate_hook_support(
+        members,
+        extract_member=lambda m: str(constants.MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION),
+        min_version=constants.MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION,
+    )
+    assert result is isoinspect.HookSupport.SUPPORTED
