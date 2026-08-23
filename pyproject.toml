@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mabox-persistence-usb"
-version = "0.1.0"
+version = "0.2.0"
 description = "Write a mabox-snapshot ISO to a USB stick with a persistent overlay partition"
 readme = "README.md"
 license = "MIT"
