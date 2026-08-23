@@ -30,11 +30,26 @@ as a writable overlay (an initramfs hook,
 .IR miso_persist )
 lives in the
 .B mabox-snapshot
-package, not this one, and is not implemented yet. Until it ships, a stick
-written by this tool boots exactly like a plain mabox-snapshot ISO and the
-persistence partition is present but unused \(em
+package, not this one. It has merged upstream but is not yet in a tagged
+mabox-snapshot release, and its boot-time behavior has not yet been
+verified on real hardware/QEMU.
 .B write
-prints an explicit warning about this every run.
+checks each ISO for a persistence boot-hook marker before creating
+.BR MABOX_PERSIST :
+an ISO built by a mabox-snapshot without the marker is refused by default
+(see
+.B \-\-force
+and
+.B \-\-no\-persist
+below) rather than silently writing a partition that will never be used.
+An encrypted
+.B MABOX_PERSIST
+(see
+.BR \-\-encrypt\-persist )
+is refused by default regardless of which mabox-snapshot built the ISO,
+since the merged
+.I miso_persist
+hook has no LUKS-unlock branch at all yet.
 .SH COMMANDS
 .SS version
 Print the installed version.
@@ -94,9 +109,12 @@ with
 .BR \-\-no\-persist .
 .TP
 .B \-\-force
-Bypass the ISO volume-ID soft check. Never bypasses the removable/USB
-filter, the critical-mount guard, or the 2TiB size guard \(em those have
-no override.
+Bypass the ISO volume-ID soft check and the persistence boot-hook support
+check (creates
+.B MABOX_PERSIST
+even on an ISO that won't use it at boot). Never bypasses the
+removable/USB filter, the critical-mount guard, or the 2TiB size guard
+\(em those have no override.
 .TP
 .B \-\-skip\-reinsert\-check
 Interactive-mode-only: skip the physical unplug/replug re-verification

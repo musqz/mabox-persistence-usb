@@ -29,10 +29,18 @@ explicitly identified, confirmed, and (interactively) physically re-verified.
 
 The boot-time mechanism that actually mounts `MABOX_PERSIST` as a writable
 overlay (`miso_persist`, an initramfs hook) lives in the `mabox-snapshot`
-repo, not here, and is not implemented yet. Until it ships, a stick written
-by this tool boots exactly like a plain mabox-snapshot ISO and **the
-persistence partition is present but unused** — `write` prints an explicit
-warning about this every time. See
+repo, not here. It has merged upstream but is not yet in a tagged
+mabox-snapshot release, and its boot-time behavior has not yet been verified
+on real hardware/QEMU. `write` checks each ISO for a `mabox/.persist-hook-version`
+marker before creating `MABOX_PERSIST`: an ISO built by a mabox-snapshot
+without the marker is refused by default (`--force` to create the partition
+anyway, or `--no-persist` for a plain non-persistent stick) rather than
+silently writing a partition that will never be used.
+
+`--encrypt-persist` has its own, stricter check: the merged `miso_persist`
+hook has no LUKS-unlock branch at all yet, so an encrypted `MABOX_PERSIST` is
+refused by default regardless of which mabox-snapshot built the ISO, until
+mabox-snapshot ships one. See
 `docs/superpowers/specs/2026-08-20-persistent-usb-design.md` for the approved
 design.
 

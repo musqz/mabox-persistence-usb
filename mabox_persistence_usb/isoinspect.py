@@ -110,12 +110,14 @@ def evaluate_hook_support(
     extract_member: Callable[[str], str],
     min_version: int = constants.MIN_SUPPORTED_HOOK_VERSION,
 ) -> HookSupport:
-    """Checks for the proposed mabox/.persist-hook-version marker (see
-    constants.PERSIST_HOOK_MARKER_PATH). mabox-snapshot does not write this
-    marker yet as of this tool's 0.1.0 -- every real ISO today evaluates to
-    UNSUPPORTED, which is accurate, not a bug: `write` does not gate on this
-    result yet (see cli.cmd_write's unconditional warning instead), it only
-    informs `inspect`'s report until mabox-snapshot ships the marker."""
+    """Checks the mabox/.persist-hook-version marker (see
+    constants.PERSIST_HOOK_MARKER_PATH) against min_version. `write` uses
+    this as a real pre-flight gate (see cli.cmd_write): min_version defaults
+    to constants.MIN_SUPPORTED_HOOK_VERSION for plain persistence, but the
+    caller passes constants.MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION instead to
+    check --encrypt-persist support specifically, since the two track
+    different mabox-snapshot capabilities (a plain-ext4-aware miso_persist
+    hook vs. one with a LUKS-unlock branch)."""
     if constants.PERSIST_HOOK_MARKER_PATH not in members:
         return HookSupport.UNSUPPORTED
     raw = extract_member(constants.PERSIST_HOOK_MARKER_PATH).strip()
@@ -136,6 +138,7 @@ class IsoInspection:
     checksum_ok: bool | None
     rootfs_encrypted: bool | None
     hook_support: HookSupport
+    encrypted_hook_support: HookSupport
 
 
 def inspect_iso(iso_path: Path) -> IsoInspection:
@@ -162,4 +165,7 @@ def inspect_iso(iso_path: Path) -> IsoInspection:
         checksum_ok=checksum_ok,
         rootfs_encrypted=detect_rootfs_encryption(members),
         hook_support=evaluate_hook_support(members, _extract),
+        encrypted_hook_support=evaluate_hook_support(
+            members, _extract, min_version=constants.MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION
+        ),
     )
