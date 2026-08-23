@@ -3,7 +3,7 @@ _mabox_persistence_usb() {
     _init_completion || return
 
     local commands="version doctor devices inspect write"
-    local write_opts="--device --yes -y --force-unmount --persist-size --no-persist --force --skip-reinsert-check --no-verify --dry-run -h --help"
+    local write_opts="--device --yes -y --force-unmount --persist-size --no-persist --encrypt-persist --force --skip-reinsert-check --no-verify --dry-run -h --help"
 
     case "${words[1]}" in
         devices)
