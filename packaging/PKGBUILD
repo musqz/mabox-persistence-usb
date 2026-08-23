@@ -1,0 +1,52 @@
+# Maintainer: musqz
+pkgname=mabox-persistence-usb
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Write a mabox-snapshot ISO to a USB stick with a persistent overlay partition"
+arch=('any')
+url="https://github.com/musqz/mabox-persistence-usb"
+license=('MIT')
+depends=(
+    'python'
+    'util-linux'
+    'parted'
+    'e2fsprogs'
+    'libarchive'
+    'coreutils'
+)
+optdepends=(
+    'cryptsetup: --encrypt-persist LUKS2-encrypted persistence partition (not yet implemented)'
+    'bash-completion: tab-completion for the mabox-persistence-usb CLI'
+)
+makedepends=('python-build' 'python-installer' 'python-hatchling')
+checkdepends=('python-pytest')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP') # placeholder until v0.1.0 is tagged -- see ~/.claude/reference/arch-aur-release.md
+
+build() {
+    cd "$pkgname-$pkgver"
+    python -m build --wheel --no-isolation
+}
+
+check() {
+    cd "$pkgname-$pkgver"
+    python -m pytest tests/unit/ -q
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+    python -m installer --destdir="$pkgdir" dist/*.whl
+
+    sed "s/@VERSION@/$pkgver/" man/mabox-persistence-usb.1 > man/mabox-persistence-usb.1.built
+    install -Dm644 man/mabox-persistence-usb.1.built \
+        "$pkgdir/usr/share/man/man1/mabox-persistence-usb.1"
+
+    install -Dm644 completions/mabox-persistence-usb.bash \
+        "$pkgdir/usr/share/bash-completion/completions/mabox-persistence-usb"
+
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+    find "$pkgdir" -type d -exec chmod 755 {} +
+    find "$pkgdir" -type f -exec chmod 644 {} +
+    find "$pkgdir/usr/bin" -type f -exec chmod 755 {} + 2>/dev/null || true
+}
