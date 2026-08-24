@@ -177,7 +177,7 @@ def wait_for_reinsert(
             "will match on vendor+model+size only, a weaker fingerprint."
         )
 
-    print_fn(f"Physically unplug {disk.path} now, then plug it back in.")
+    print_fn(f"PHYSICALLY UNPLUG {disk.path} NOW, THEN PLUG IT BACK IN.")
 
     elapsed = 0.0
     while any(_matches(c) for c in list_candidates()):
