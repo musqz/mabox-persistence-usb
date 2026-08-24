@@ -221,6 +221,29 @@ def read_partition_paths(device_path: str) -> set[str]:
     return parse_lsblk_partition_paths(raw)
 
 
+def _resolve_new_partition_with_retry(
+    device_path: str,
+    before: set[str],
+    retries: int = constants.PARTITION_DIFF_RETRIES,
+    delay_s: float = constants.PARTITION_DIFF_RETRY_DELAY_S,
+) -> str:
+    """partprobe exiting 0 and `udevadm settle` returning are both about the
+    kernel's partition table, not about lsblk's view of it -- the new
+    partition's device node can still take another beat to show up. Retries
+    the read+diff itself rather than assuming settle's success means the
+    node is already visible; see PARTITION_DIFF_RETRIES in constants.py."""
+    last_error = None
+    for attempt in range(retries):
+        after = read_partition_paths(device_path)
+        try:
+            return resolve_new_partition(before, after)
+        except RuntimeError as e:
+            last_error = e
+            if attempt < retries - 1:
+                time.sleep(delay_s)
+    raise last_error
+
+
 def append_persist_partition(device_path: str, start_bytes: int, end_spec: str) -> str:
     """Appends the partition and returns its resolved device path."""
     before = read_partition_paths(device_path)
@@ -241,8 +264,7 @@ def append_persist_partition(device_path: str, start_bytes: int, end_spec: str) 
             raise
     _partprobe_with_retry(device_path)
     subprocess.run(build_udevadm_settle_command(), check=True)
-    after = read_partition_paths(device_path)
-    return resolve_new_partition(before, after)
+    return _resolve_new_partition_with_retry(device_path, before)
 
 
 def format_persist_plain(partition_path: str) -> None:
