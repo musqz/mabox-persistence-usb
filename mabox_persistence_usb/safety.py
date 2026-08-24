@@ -10,6 +10,7 @@ user-facing failures (exit code 1)."""
 
 from __future__ import annotations
 
+import sys
 import time
 
 from . import constants, device
@@ -105,6 +106,7 @@ def enumerate_and_disambiguate(list_candidates, input_fn=input, print_fn=print, 
     and press Enter", not a hard failure."""
     for _ in range(max_rescans):
         print_fn("Detecting attached USB drives ...")
+        sys.stdout.flush()
         candidates = list_candidates()
         if not candidates:
             print_fn("No removable USB disk detected.")
