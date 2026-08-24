@@ -249,7 +249,7 @@ def append_persist_partition(device_path: str, start_bytes: int, end_spec: str) 
     before = read_partition_paths(device_path)
     try:
         subprocess.run(build_parted_mkpart_command(device_path, start_bytes, end_spec), check=True)
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as exc:
         # parted's own mkpart can fail with the identical automount-race
         # "unable to inform the kernel ... in use" error partprobe does --
         # and by the time this surfaces, parted has already committed the
@@ -257,11 +257,15 @@ def append_persist_partition(device_path: str, start_bytes: int, end_spec: str) 
         # mkpart itself: the table write already happened, so running it
         # again would append the same partition entry a second time. Force
         # a reread instead and check whether the partition parted already
-        # wrote actually showed up; if it didn't, this wasn't that race and
-        # the original failure stands.
+        # wrote actually showed up, tolerating the same lsblk lag as the
+        # success path below (a single read here missed real successes
+        # too); if it never shows up, this wasn't that race and the
+        # original failure stands.
         _partprobe_with_retry(device_path)
-        if len(read_partition_paths(device_path) - before) != 1:
-            raise
+        try:
+            _resolve_new_partition_with_retry(device_path, before)
+        except RuntimeError:
+            raise exc from None
     _partprobe_with_retry(device_path)
     subprocess.run(build_udevadm_settle_command(), check=True)
     return _resolve_new_partition_with_retry(device_path, before)
