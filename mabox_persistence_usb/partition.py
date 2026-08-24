@@ -84,6 +84,18 @@ def build_udevadm_settle_command() -> list[str]:
     return ["udevadm", "settle"]
 
 
+def reread_partition_table(device_path: str) -> None:
+    """Forces the kernel to notice the partition table dd just wrote before
+    anything else touches the device. Without this, the kernel keeps
+    whatever partition table it had cached from before the write (e.g. a
+    previous run's own MABOX_PERSIST layout) -- append_persist_partition()'s
+    later `parted mkpart` then fails with parted's "unable to inform the
+    kernel of the change ... probably because it/they are in use", because
+    parted is trying to update a table the kernel doesn't think is current."""
+    subprocess.run(build_partprobe_command(device_path), check=True)
+    subprocess.run(build_udevadm_settle_command(), check=True)
+
+
 def build_lsblk_partitions_command(device_path: str) -> list[str]:
     return ["lsblk", "-J", "-b", "-o", "NAME,PATH", device_path]
 
