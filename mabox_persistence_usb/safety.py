@@ -104,6 +104,7 @@ def enumerate_and_disambiguate(list_candidates, input_fn=input, print_fn=print, 
     user already knows a /dev/sdX name -- zero candidates means "plug it in
     and press Enter", not a hard failure."""
     for _ in range(max_rescans):
+        print_fn("Detecting attached USB drives ...")
         candidates = list_candidates()
         if not candidates:
             print_fn("No removable USB disk detected.")
