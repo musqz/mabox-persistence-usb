@@ -247,6 +247,16 @@ def _cmd_write(args: argparse.Namespace) -> int:
     print(f"writing {iso_path} to {disk.path} ...")
     writer.write_iso_to_device(iso_path, disk.path)
 
+    # Hash the device's ISO byte range now, before appending a partition: the
+    # ISO's own isohybrid layout embeds its msdos partition table in its
+    # first sector, so parted's mkpart below rewrites that MBR to add
+    # MABOX_PERSIST's entry -- inside the very byte range being verified.
+    # Hashing after mkpart would compare a post-partitioned device against a
+    # checksum of the pristine, un-partitioned ISO and never match.
+    iso_range_actual = None
+    if not args.no_verify and report.checksum_path:
+        iso_range_actual = verify.hash_device_prefix(disk.path, iso_size_bytes)
+
     new_partition = None
     if not args.no_persist:
         print("appending MABOX_PERSIST partition ...")
@@ -269,8 +279,7 @@ def _cmd_write(args: argparse.Namespace) -> int:
                 problems.append(f"{new_partition} does not report label {constants.PERSIST_LABEL}")
         if report.checksum_path:
             expected = isoinspect.read_expected_checksum(report.checksum_path)
-            actual = verify.hash_device_prefix(disk.path, iso_size_bytes)
-            if actual.lower() != expected:
+            if iso_range_actual.lower() != expected:
                 problems.append("device's ISO byte range does not match the source checksum")
         if problems:
             for problem in problems:
