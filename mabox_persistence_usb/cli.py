@@ -9,6 +9,27 @@ from pathlib import Path
 
 from . import __version__, constants, device, isoinspect, partition, persist_luks, privilege, safety, verify, writer
 
+BANNER_ART = (
+    "███╗   ███╗ █████╗ ██████╗  ██████╗ ██╗  ██╗\n"
+    "████╗ ████║██╔══██╗██╔══██╗██╔═══██╗╚██╗██╔╝\n"
+    "██╔████╔██║███████║██████╔╝██║   ██║ ╚███╔╝ \n"
+    "██║╚██╔╝██║██╔══██║██╔══██╗██║   ██║ ██╔██╗ \n"
+    "██║ ╚═╝ ██║██║  ██║██████╔╝╚██████╔╝██╔╝ ██╗\n"
+    "╚═╝     ╚═╝╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═╝  ╚═╝"
+)
+BANNER_SUBTITLE = "persistence usb writer"
+
+
+def print_banner() -> None:
+    width = len(BANNER_ART.splitlines()[0])
+    subtitle = BANNER_SUBTITLE.center(width)
+    if sys.stdout.isatty():
+        print(f"\033[96m{BANNER_ART}\033[0m")
+        print(f"\033[2m{subtitle}\033[0m\n")
+    else:
+        print(BANNER_ART)
+        print(f"{subtitle}\n")
+
 
 def cmd_version(_args: argparse.Namespace) -> int:
     print(f"mabox-persistence-usb {__version__}")
@@ -79,10 +100,13 @@ def cmd_inspect(args: argparse.Namespace) -> int:
 
 
 def _resolve_target_device(args: argparse.Namespace) -> device.UsbDisk:
+    print("Attach the target USB drive now, if it isn't already plugged in.")
     if args.device:
+        print("Detecting attached USB drives ...")
         eligible = device.list_removable_usb_disks()
         return safety.resolve_explicit_device(args.device, eligible)
     if args.yes:
+        print("Detecting attached USB drives ...")
         eligible = device.list_removable_usb_disks()
         if len(eligible) != 1:
             raise safety.AmbiguousDeviceError(
@@ -370,6 +394,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    print_banner()
     parser = build_parser()
     args = parser.parse_args(argv)
     return args.func(args)
