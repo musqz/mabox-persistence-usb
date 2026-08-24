@@ -77,6 +77,30 @@ def build_parted_mkpart_command(device_path: str, start_bytes: int, end_spec: st
     ]
 
 
+def build_parted_print_command(device_path: str) -> list[str]:
+    # --machine: colon-delimited, stable across parted versions -- unlike
+    # the human tabular format, whose column widths and which trailing
+    # columns (File system/Flags) are even present both vary by content,
+    # which parted itself documents --machine as the fix for.
+    return ["parted", "--machine", "--script", device_path, "unit", "B", "print"]
+
+
+def parse_parted_partition_starts(raw: str) -> dict[int, int]:
+    """Maps partition number -> start offset in bytes, from `parted
+    --machine ... unit B print` output. Only Number/Start are parsed here;
+    the header lines ('BYT;', the disk-info line) don't start with a
+    partition number and are skipped by the isdigit() check rather than by
+    position, since machine mode doesn't guarantee a fixed header length
+    across parted versions either."""
+    starts = {}
+    for line in raw.splitlines():
+        fields = line.strip().rstrip(";").split(":")
+        if len(fields) < 2 or not fields[0].isdigit():
+            continue
+        starts[int(fields[0])] = int(fields[1].rstrip("B"))
+    return starts
+
+
 def build_partprobe_command(device_path: str) -> list[str]:
     return ["partprobe", device_path]
 
@@ -96,6 +120,16 @@ def is_partition_of(mount_device: str, device_path: str) -> bool:
         return False
     suffix = mount_device[len(device_path):]
     return suffix.lstrip("p").isdigit()
+
+
+def _partition_number(mount_device: str, device_path: str) -> int | None:
+    """The partition number from a partition's device path (e.g.
+    '/dev/sdd1' -> 1, '/dev/nvme0n1p3' -> 3), or None if mount_device isn't
+    a partition of device_path -- reuses is_partition_of's own prefix/'p'
+    handling rather than duplicating it."""
+    if not is_partition_of(mount_device, device_path):
+        return None
+    return int(mount_device[len(device_path):].lstrip("p"))
 
 
 def _clear_stale_holders(device_path: str) -> None:
@@ -198,18 +232,6 @@ def parse_lsblk_partition_paths(raw: str) -> set[str]:
     return paths
 
 
-def resolve_new_partition(before: set[str], after: set[str]) -> str:
-    """Diffs partition paths before/after the parted mkpart call -- never
-    assumes the new partition is 'partition N', since the ISO's own content
-    may already have claimed some of the msdos table's 4 primary slots."""
-    new_paths = after - before
-    if len(new_paths) != 1:
-        raise RuntimeError(
-            f"expected exactly one new partition after mkpart, found {len(new_paths)}: {sorted(new_paths)}"
-        )
-    return new_paths.pop()
-
-
 def build_mkfs_ext4_command(partition_path: str, label: str = constants.PERSIST_LABEL) -> list[str]:
     return ["mkfs.ext4", "-F", "-L", label, partition_path]
 
@@ -221,32 +243,113 @@ def read_partition_paths(device_path: str) -> set[str]:
     return parse_lsblk_partition_paths(raw)
 
 
-def _resolve_new_partition_with_retry(
+def resolve_partition_by_start(
+    starts: dict[int, int], paths: set[str], device_path: str, start_bytes: int
+) -> str | None:
+    """Pure matching logic for _find_partition_by_start (see that
+    docstring for why matching by position, unbounded above start_bytes,
+    is the right approach here). Picks the partition whose start is the
+    smallest value >= start_bytes; raises RuntimeError instead of silently
+    picking one if more than one qualifies, rather than risk mkfs.ext4
+    silently formatting the wrong partition if append_persist_partition's
+    documented precondition (device freshly reimaged before this call)
+    doesn't actually hold for some future caller."""
+    candidates = []
+    for path in paths:
+        number = _partition_number(path, device_path)
+        if number is None:
+            continue
+        actual_start = starts.get(number)
+        if actual_start is not None and actual_start >= start_bytes:
+            candidates.append((actual_start, path))
+    if not candidates:
+        return None
+    candidates.sort()
+    if len(candidates) > 1:
+        raise RuntimeError(
+            f"expected at most one partition starting at or after {start_bytes}B on "
+            f"{device_path}, found {len(candidates)}: {[path for _, path in candidates]}"
+        )
+    return candidates[0][1]
+
+
+def _find_partition_by_start(device_path: str, start_bytes: int) -> str | None:
+    """Identifies the partition parted just created by matching the start
+    offset it was told to use, instead of diffing partition paths
+    before/after the mkpart call. Diffing is fundamentally the wrong tool
+    for this: on a repeat write to the same physical stick (this tool's own
+    normal, designed-for use case -- see the "always-fresh" refresh
+    semantics), parted always assigns MABOX_PERSIST to the same free msdos
+    table slot, so it gets the same device path (e.g. /dev/sdd1) as any
+    leftover MABOX_PERSIST from a previous run on that stick. A before/after
+    path diff can then never see it as "new" -- before and after are
+    literally the same path string -- no matter how long it retries,
+    reproduced twice in real use (two different ISO sizes, same stick).
+
+    Matches the smallest start >= start_bytes rather than an exact or
+    windowed match: --align optimal can nudge the actual start forward from
+    the literal start_bytes requested by an amount that depends on the
+    device's own reported optimal I/O alignment, not reliably bounded by
+    any fixed constant (some USB/SSD media report a larger optimal_io_size
+    than PARTITION_ALIGNMENT_BYTES's 1 MiB). Safe to leave the upper end
+    unbounded: append_persist_partition's caller always reimages the whole
+    device (dd) and forces the kernel/on-disk table back to just the ISO's
+    own two entries -- both below start_bytes -- before calling this, so
+    nothing else on the disk can legitimately have a start >= start_bytes;
+    see append_persist_partition's docstring for that precondition."""
+    raw = subprocess.run(
+        build_parted_print_command(device_path), capture_output=True, text=True, check=True
+    ).stdout
+    starts = parse_parted_partition_starts(raw)
+    paths = read_partition_paths(device_path)
+    return resolve_partition_by_start(starts, paths, device_path, start_bytes)
+
+
+def _await_partition_by_start(
     device_path: str,
-    before: set[str],
-    retries: int = constants.PARTITION_DIFF_RETRIES,
-    delay_s: float = constants.PARTITION_DIFF_RETRY_DELAY_S,
-) -> str:
+    start_bytes: int,
+    retries: int = constants.PARTITION_LOOKUP_RETRIES,
+    delay_s: float = constants.PARTITION_LOOKUP_RETRY_DELAY_S,
+) -> str | None:
     """partprobe exiting 0 and `udevadm settle` returning are both about the
-    kernel's partition table, not about lsblk's view of it -- the new
-    partition's device node can still take another beat to show up. Retries
-    the read+diff itself rather than assuming settle's success means the
-    node is already visible; see PARTITION_DIFF_RETRIES in constants.py."""
-    last_error = None
+    kernel's partition table, not about lsblk's/parted's view of it -- the
+    new partition can still take another beat to show up in either. Retries
+    the lookup itself rather than assuming settle's success means it's
+    already visible; see PARTITION_LOOKUP_RETRIES in constants.py.
+
+    Also tolerates _find_partition_by_start's own subprocess calls (parted
+    print, lsblk) transiently failing with CalledProcessError -- the same
+    "device busy" automount-race class of error partprobe/mkpart are
+    already known to hit elsewhere in this module -- rather than letting
+    the first such failure abort the whole retry budget. A RuntimeError
+    from resolve_partition_by_start (more than one candidate) is not
+    caught here and propagates immediately: that's a structural precondition
+    violation retrying can't fix, not a transient race."""
     for attempt in range(retries):
-        after = read_partition_paths(device_path)
         try:
-            return resolve_new_partition(before, after)
-        except RuntimeError as e:
-            last_error = e
-            if attempt < retries - 1:
-                time.sleep(delay_s)
-    raise last_error
+            found = _find_partition_by_start(device_path, start_bytes)
+        except subprocess.CalledProcessError:
+            found = None
+        if found is not None:
+            return found
+        if attempt < retries - 1:
+            time.sleep(delay_s)
+    return None
 
 
 def append_persist_partition(device_path: str, start_bytes: int, end_spec: str) -> str:
-    """Appends the partition and returns its resolved device path."""
-    before = read_partition_paths(device_path)
+    """Appends the partition and returns its resolved device path.
+
+    Precondition: device_path must have just been reimaged (dd) and had
+    reread_partition_table() run on it, so the kernel/on-disk table
+    reflects only the ISO's own two entries (both below start_bytes) before
+    this call's mkpart adds at most one more -- see
+    _find_partition_by_start's docstring for why that's load-bearing for
+    correctly identifying the new partition. Calling this a second time on
+    a device that already has a partition at or past start_bytes (i.e.
+    without reimaging in between) will resolve to that pre-existing
+    partition instead of surfacing an error."""
+    mkpart_error = None
     try:
         subprocess.run(build_parted_mkpart_command(device_path, start_bytes, end_spec), check=True)
     except subprocess.CalledProcessError as exc:
@@ -255,20 +358,20 @@ def append_persist_partition(device_path: str, start_bytes: int, end_spec: str) 
         # and by the time this surfaces, parted has already committed the
         # new table to disk; only the kernel's view is stale. Don't retry
         # mkpart itself: the table write already happened, so running it
-        # again would append the same partition entry a second time. Force
-        # a reread instead and check whether the partition parted already
-        # wrote actually showed up, tolerating the same lsblk lag as the
-        # success path below (a single read here missed real successes
-        # too); if it never shows up, this wasn't that race and the
-        # original failure stands.
-        _partprobe_with_retry(device_path)
-        try:
-            _resolve_new_partition_with_retry(device_path, before)
-        except RuntimeError:
-            raise exc from None
+        # again would append the same partition entry a second time.
+        # Fall through to the same by-start lookup as the success path
+        # below; only re-raise this if that lookup comes up empty too.
+        mkpart_error = exc
     _partprobe_with_retry(device_path)
     subprocess.run(build_udevadm_settle_command(), check=True)
-    return _resolve_new_partition_with_retry(device_path, before)
+    new_partition = _await_partition_by_start(device_path, start_bytes)
+    if new_partition is None:
+        if mkpart_error is not None:
+            raise mkpart_error
+        raise RuntimeError(
+            f"expected a new partition starting at {start_bytes}B on {device_path}, found none"
+        )
+    return new_partition
 
 
 def format_persist_plain(partition_path: str) -> None:
