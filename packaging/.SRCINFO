@@ -1,6 +1,6 @@
 pkgbase = mabox-persistence-usb
 	pkgdesc = Write a mabox-snapshot ISO to a USB stick with a persistent overlay partition
-	pkgver = 0.2.0
+	pkgver = 0.2.1
 	pkgrel = 1
 	url = https://github.com/musqz/mabox-persistence-usb
 	arch = any
@@ -17,7 +17,7 @@ pkgbase = mabox-persistence-usb
 	depends = coreutils
 	optdepends = cryptsetup: --encrypt-persist LUKS2-encrypted persistence partition
 	optdepends = bash-completion: tab-completion for the mabox-persistence-usb CLI
-	source = mabox-persistence-usb-0.2.0.tar.gz::https://github.com/musqz/mabox-persistence-usb/archive/refs/tags/v0.2.0.tar.gz
-	sha256sums = 141932d0b81dae1d9c49803e52548d9fdd564ef6cbbe4d5122b7f15593baf8b5
+	source = mabox-persistence-usb-0.2.1.tar.gz::https://github.com/musqz/mabox-persistence-usb/archive/refs/tags/v0.2.1.tar.gz
+	sha256sums = SKIP
 
 pkgname = mabox-persistence-usb
