@@ -105,3 +105,13 @@ DD_BLOCK_SIZE = "4M"
 # it real headroom before giving up for good.
 PARTPROBE_RETRIES = 10
 PARTPROBE_RETRY_DELAY_S = 1.5
+
+# partprobe exiting 0 and `udevadm settle` returning don't guarantee lsblk's
+# view is caught up yet -- the new partition's device node can still lag a
+# beat behind both of those reporting done, even with no automount daemon in
+# the picture (observed after a long dd leaves the kernel busy on that same
+# device). Retry the before/after partition-path diff itself before giving
+# up, separate from PARTPROBE_RETRIES above which only covers partprobe
+# itself failing.
+PARTITION_DIFF_RETRIES = 5
+PARTITION_DIFF_RETRY_DELAY_S = 1.0
