@@ -96,9 +96,12 @@ PRE_WRITE_COUNTDOWN_S = 5
 DD_BLOCK_SIZE = "4M"
 
 # partprobe can transiently fail with parted's "unable to inform the kernel
-# of the change ... probably because it/they are in use" -- not a real
-# conflict, just a desktop automount daemon (udisks2/gvfs) racing to probe
-# the device right after it was written/repartitioned. Normally clears
-# within a second or two, so retry a few times before giving up for real.
-PARTPROBE_RETRIES = 3
-PARTPROBE_RETRY_DELAY_S = 1.0
+# of the change ... probably because it/they are in use" -- a desktop
+# automount daemon (udisks2/gvfs) keeps re-mounting the drive as soon as its
+# filesystem label reappears from the write, not just a one-off race. Each
+# retry actively unmounts whatever reappeared (see
+# partition._unmount_reappeared_partitions) rather than just waiting, but
+# the daemon can re-win a couple of rounds on a slow/loaded desktop, so give
+# it real headroom before giving up for good.
+PARTPROBE_RETRIES = 10
+PARTPROBE_RETRY_DELAY_S = 1.5

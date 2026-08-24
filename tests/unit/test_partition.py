@@ -64,6 +64,22 @@ def test_build_mkfs_ext4_command_uses_persist_label_by_default():
     assert cmd == ["mkfs.ext4", "-F", "-L", constants.PERSIST_LABEL, "/dev/sdb3"]
 
 
+@pytest.mark.parametrize(
+    "mount_device,device_path,expected",
+    [
+        ("/dev/sdd1", "/dev/sdd", True),
+        ("/dev/sdd12", "/dev/sdd", True),
+        ("/dev/nvme0n1p1", "/dev/nvme0n1", True),
+        ("/dev/sdd", "/dev/sdd", False),
+        ("/dev/sdaa1", "/dev/sda", False),
+        ("/dev/nvme0n10p1", "/dev/nvme0n1", False),
+        ("/dev/sde1", "/dev/sdd", False),
+    ],
+)
+def test_is_partition_of(mount_device, device_path, expected):
+    assert partition.is_partition_of(mount_device, device_path) is expected
+
+
 def test_parse_lsblk_partition_paths():
     raw = json.dumps({
         "blockdevices": [

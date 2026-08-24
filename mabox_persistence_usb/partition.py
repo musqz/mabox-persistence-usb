@@ -19,7 +19,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from . import constants
+from . import constants, device
 
 
 def compute_partition_start(iso_size_bytes: int, alignment: int = constants.PARTITION_ALIGNMENT_BYTES) -> int:
@@ -85,6 +85,57 @@ def build_udevadm_settle_command() -> list[str]:
     return ["udevadm", "settle"]
 
 
+def is_partition_of(mount_device: str, device_path: str) -> bool:
+    """True if mount_device (e.g. '/dev/sdd1', '/dev/nvme0n1p1') is a
+    partition of device_path -- not just any string with device_path as a
+    prefix, since a bare prefix match also catches an unrelated disk, e.g.
+    '/dev/sdaa1'.startswith('/dev/sda') is True once sd-naming overflows
+    past sdz, and the same collision applies to NVMe namespaces
+    (nvme0n1 vs nvme0n10+)."""
+    if not mount_device.startswith(device_path):
+        return False
+    suffix = mount_device[len(device_path):]
+    return suffix.lstrip("p").isdigit()
+
+
+def _clear_stale_holders(device_path: str) -> None:
+    """A desktop automount daemon (udisks2/gvfs) doesn't just react once --
+    it re-mounts on sight. dd rewriting the disk makes its filesystem label
+    (e.g. MABOX_LIVE) reappear, which the daemon treats as newly inserted
+    removable media and auto-mounts again, even though the tool unmounted it
+    itself before writing. A previous run's --encrypt-persist overlay can
+    also still be open as /dev/mapper/PERSIST_LUKS_MAPPER_NAME from an
+    earlier session on this same stick -- device.py's lsblk parser
+    explicitly ignores dm-crypt 'crypt' children, so nothing upstream ever
+    notices or closes it. Either one holds a partition busy exactly the way
+    a manually-mounted partition would, which is what actually blocks the
+    kernel's BLKRRPART with "in use" -- no amount of waiting fixes it if
+    something keeps re-grabbing the device, which is why a plain retry loop
+    (and even a reboot, since the daemon just comes back) can fail forever.
+    Best-effort throughout, deliberately swallowing OSError as well as a
+    failed command: there may be nothing to clear, and `umount`/`cryptsetup`
+    not being on PATH, or /proc/mounts being unreadable, should never abort
+    the retry loop that calls this."""
+    mapper_source = f"/dev/mapper/{constants.PERSIST_LUKS_MAPPER_NAME}"
+    try:
+        mounts = device.parse_proc_mounts(constants.PROC_MOUNTS_FILE.read_text())
+    except OSError:
+        mounts = []
+    for mount_device, mountpoint in mounts:
+        if is_partition_of(mount_device, device_path) or mount_device == mapper_source:
+            try:
+                subprocess.run(device.build_umount_command(mountpoint), check=False)
+            except OSError:
+                pass
+    try:
+        subprocess.run(
+            ["cryptsetup", "close", constants.PERSIST_LUKS_MAPPER_NAME],
+            check=False, stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        pass
+
+
 def _partprobe_with_retry(
     device_path: str,
     retries: int = constants.PARTPROBE_RETRIES,
@@ -93,11 +144,17 @@ def _partprobe_with_retry(
     """partprobe can transiently fail the same way parted's own mkpart can
     ("unable to inform the kernel ... probably because it/they are in use")
     when a desktop automount daemon (udisks2/gvfs) is still reacting to the
-    device having just been written/repartitioned -- not a real conflict,
-    it normally clears within a second or two. Safe to retry: partprobe
-    only asks the kernel to reread, no destructive side effects."""
+    device having just been written/repartitioned. Safe to retry: partprobe
+    only asks the kernel to reread, no destructive side effects. The first
+    attempt is left alone (no automount race has been observed yet); only
+    once partprobe has actually failed once do later attempts first clear
+    whatever's holding the device busy -- see _clear_stale_holders -- since
+    that's the actual blocker, not just transient busy-ness that time alone
+    resolves."""
     last_error = None
     for attempt in range(retries):
+        if attempt > 0:
+            _clear_stale_holders(device_path)
         try:
             subprocess.run(build_partprobe_command(device_path), check=True)
             return
@@ -117,7 +174,10 @@ def reread_partition_table(device_path: str) -> None:
     kernel of the change ... probably because it/they are in use", because
     parted is trying to update a table the kernel doesn't think is current.
     Settles first too, so any udev/automount reaction already queued from
-    dd's own write has a chance to finish before partprobe competes with it."""
+    dd's own write has a chance to finish before partprobe competes with it.
+    Note this can forcibly unmount and close things on device_path (see
+    _partprobe_with_retry / _clear_stale_holders) -- not a read-only probe
+    once the first attempt fails."""
     subprocess.run(build_udevadm_settle_command(), check=True)
     _partprobe_with_retry(device_path)
     subprocess.run(build_udevadm_settle_command(), check=True)
@@ -164,7 +224,21 @@ def read_partition_paths(device_path: str) -> set[str]:
 def append_persist_partition(device_path: str, start_bytes: int, end_spec: str) -> str:
     """Appends the partition and returns its resolved device path."""
     before = read_partition_paths(device_path)
-    subprocess.run(build_parted_mkpart_command(device_path, start_bytes, end_spec), check=True)
+    try:
+        subprocess.run(build_parted_mkpart_command(device_path, start_bytes, end_spec), check=True)
+    except subprocess.CalledProcessError:
+        # parted's own mkpart can fail with the identical automount-race
+        # "unable to inform the kernel ... in use" error partprobe does --
+        # and by the time this surfaces, parted has already committed the
+        # new table to disk; only the kernel's view is stale. Don't retry
+        # mkpart itself: the table write already happened, so running it
+        # again would append the same partition entry a second time. Force
+        # a reread instead and check whether the partition parted already
+        # wrote actually showed up; if it didn't, this wasn't that race and
+        # the original failure stands.
+        _partprobe_with_retry(device_path)
+        if len(read_partition_paths(device_path) - before) != 1:
+            raise
     _partprobe_with_retry(device_path)
     subprocess.run(build_udevadm_settle_command(), check=True)
     after = read_partition_paths(device_path)
