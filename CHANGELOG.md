@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.2
+
+- Fixed `write` crashing with an unhandled `parted` error ("unable to
+  inform the kernel of the change ... probably because it/they are in
+  use") when appending `MABOX_PERSIST` to a device that still held a
+  previous run's stale partition table in the kernel's live view. The
+  device's partition table is now re-read (`partprobe` + `udevadm
+  settle`) immediately after the `dd` write, before anything else
+  touches it.
+- Added a "Detecting attached USB drives ..." status message around each
+  USB scan in `write` (the underlying `lsblk`/`udevadm` calls previously
+  ran silently), an upfront "Attach the target USB drive now" prompt
+  before detection starts, and a colored ASCII welcome banner shown
+  before every subcommand (plain text when stdout isn't a tty).
+
 ## 0.2.1
 
 - Fixed a post-write verification bug: the ISO byte-range checksum was
