@@ -18,6 +18,6 @@ pkgbase = mabox-persistence-usb
 	optdepends = cryptsetup: --encrypt-persist LUKS2-encrypted persistence partition
 	optdepends = bash-completion: tab-completion for the mabox-persistence-usb CLI
 	source = mabox-persistence-usb-0.2.2.tar.gz::https://github.com/musqz/mabox-persistence-usb/archive/refs/tags/v0.2.2.tar.gz
-	sha256sums = SKIP
+	sha256sums = c07984db5b405fbd2a4560d2c52e3b0833105114eed818c6aee923b339d2d423
 
 pkgname = mabox-persistence-usb
