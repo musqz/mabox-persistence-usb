@@ -271,6 +271,12 @@ def _cmd_write(args: argparse.Namespace) -> int:
     print(f"writing {iso_path} to {disk.path} ...")
     writer.write_iso_to_device(iso_path, disk.path)
 
+    # Force the kernel to notice the partition table dd just wrote before
+    # doing anything else -- otherwise it can still be holding a previous
+    # run's stale table (e.g. an old MABOX_PERSIST layout), which makes the
+    # mkpart call below fail to inform the kernel of ITS change.
+    partition.reread_partition_table(disk.path)
+
     # Hash the device's ISO byte range now, before appending a partition: the
     # ISO's own isohybrid layout embeds its msdos partition table in its
     # first sector, so parted's mkpart below rewrites that MBR to add
