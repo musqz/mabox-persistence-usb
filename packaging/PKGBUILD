@@ -21,7 +21,7 @@ optdepends=(
 makedepends=('python-build' 'python-installer' 'python-hatchling')
 checkdepends=('python-pytest')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('14fe8d2a38d8b99a85bb99d766e4a983163609213348554c099ed8d0a166cbc4')
 
 build() {
     cd "$pkgname-$pkgver"
