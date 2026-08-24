@@ -112,12 +112,15 @@ def cmd_inspect(args: argparse.Namespace) -> int:
 
 def _resolve_target_device(args: argparse.Namespace) -> device.UsbDisk:
     print(emphasize("Attach the target USB drive now, if it isn't already plugged in."))
+    sys.stdout.flush()
     if args.device:
         print("Detecting attached USB drives ...")
+        sys.stdout.flush()
         eligible = device.list_removable_usb_disks()
         return safety.resolve_explicit_device(args.device, eligible)
     if args.yes:
         print("Detecting attached USB drives ...")
+        sys.stdout.flush()
         eligible = device.list_removable_usb_disks()
         if len(eligible) != 1:
             raise safety.AmbiguousDeviceError(
