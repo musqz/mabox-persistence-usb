@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.5
+
+- Fixed `write` still failing on `partprobe`'s "unable to inform the kernel
+  of the change ... probably because it/they are in use" even with 0.2.4's
+  retry loop, and even after a reboot. The actual cause: a desktop
+  automount daemon (udisks2/gvfs) re-mounts the drive the instant `dd`
+  makes its filesystem label (e.g. `MABOX_LIVE`) reappear, so it can keep
+  winning the race no matter how long the retry loop waits -- and comes
+  right back after a reboot too. Each retry now actively unmounts whatever
+  reappeared, and closes a lingering `--encrypt-persist` LUKS mapper left
+  open from a previous run on the same stick. `parted`'s own `mkpart` call,
+  which could hit the identical error with no retry protection at all, is
+  now covered too.
+
 ## 0.2.4
 
 - Fixed `write` occasionally crashing with parted's "unable to inform the
