@@ -15,7 +15,9 @@ _mabox_persistence_usb() {
             return
             ;;
         write)
-            if [[ "$prev" == "write" || "$cword" -eq 2 ]]; then
+            if [[ "$cur" == -* ]]; then
+                COMPREPLY=($(compgen -W "$write_opts" -- "$cur"))
+            elif [[ "$prev" == "write" || "$cword" -eq 2 ]]; then
                 COMPREPLY=($(compgen -f -- "$cur"))
             else
                 COMPREPLY=($(compgen -W "$write_opts" -- "$cur"))
