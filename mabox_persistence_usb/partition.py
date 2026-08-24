@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import time
 from pathlib import Path
 
 from . import constants
@@ -84,6 +85,29 @@ def build_udevadm_settle_command() -> list[str]:
     return ["udevadm", "settle"]
 
 
+def _partprobe_with_retry(
+    device_path: str,
+    retries: int = constants.PARTPROBE_RETRIES,
+    delay_s: float = constants.PARTPROBE_RETRY_DELAY_S,
+) -> None:
+    """partprobe can transiently fail the same way parted's own mkpart can
+    ("unable to inform the kernel ... probably because it/they are in use")
+    when a desktop automount daemon (udisks2/gvfs) is still reacting to the
+    device having just been written/repartitioned -- not a real conflict,
+    it normally clears within a second or two. Safe to retry: partprobe
+    only asks the kernel to reread, no destructive side effects."""
+    last_error = None
+    for attempt in range(retries):
+        try:
+            subprocess.run(build_partprobe_command(device_path), check=True)
+            return
+        except subprocess.CalledProcessError as e:
+            last_error = e
+            if attempt < retries - 1:
+                time.sleep(delay_s)
+    raise last_error
+
+
 def reread_partition_table(device_path: str) -> None:
     """Forces the kernel to notice the partition table dd just wrote before
     anything else touches the device. Without this, the kernel keeps
@@ -91,8 +115,11 @@ def reread_partition_table(device_path: str) -> None:
     previous run's own MABOX_PERSIST layout) -- append_persist_partition()'s
     later `parted mkpart` then fails with parted's "unable to inform the
     kernel of the change ... probably because it/they are in use", because
-    parted is trying to update a table the kernel doesn't think is current."""
-    subprocess.run(build_partprobe_command(device_path), check=True)
+    parted is trying to update a table the kernel doesn't think is current.
+    Settles first too, so any udev/automount reaction already queued from
+    dd's own write has a chance to finish before partprobe competes with it."""
+    subprocess.run(build_udevadm_settle_command(), check=True)
+    _partprobe_with_retry(device_path)
     subprocess.run(build_udevadm_settle_command(), check=True)
 
 
@@ -138,7 +165,7 @@ def append_persist_partition(device_path: str, start_bytes: int, end_spec: str) 
     """Appends the partition and returns its resolved device path."""
     before = read_partition_paths(device_path)
     subprocess.run(build_parted_mkpart_command(device_path, start_bytes, end_spec), check=True)
-    subprocess.run(build_partprobe_command(device_path), check=True)
+    _partprobe_with_retry(device_path)
     subprocess.run(build_udevadm_settle_command(), check=True)
     after = read_partition_paths(device_path)
     return resolve_new_partition(before, after)
