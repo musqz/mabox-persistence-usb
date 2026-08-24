@@ -31,6 +31,17 @@ def print_banner() -> None:
         print(f"{subtitle}\n")
 
 
+WRITE_INTRO = (
+    "This writes a mabox-snapshot ISO to a USB drive and adds a\n"
+    "persistent MABOX_PERSIST overlay partition. The target drive\n"
+    "will be completely erased."
+)
+
+
+def emphasize(text: str) -> str:
+    return f"\033[1;93m{text}\033[0m" if sys.stdout.isatty() else text
+
+
 def cmd_version(_args: argparse.Namespace) -> int:
     print(f"mabox-persistence-usb {__version__}")
     return 0
@@ -100,7 +111,7 @@ def cmd_inspect(args: argparse.Namespace) -> int:
 
 
 def _resolve_target_device(args: argparse.Namespace) -> device.UsbDisk:
-    print("Attach the target USB drive now, if it isn't already plugged in.")
+    print(emphasize("Attach the target USB drive now, if it isn't already plugged in."))
     if args.device:
         print("Detecting attached USB drives ...")
         eligible = device.list_removable_usb_disks()
@@ -130,6 +141,8 @@ def cmd_write(args: argparse.Namespace) -> int:
 
 
 def _cmd_write(args: argparse.Namespace) -> int:
+    print(f"{WRITE_INTRO}\n")
+
     iso_path: Path = args.iso
     if not iso_path.exists():
         print(f"error: {iso_path} does not exist", file=sys.stderr)
