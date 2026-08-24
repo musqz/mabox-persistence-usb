@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3
+
+- `write` now prints an intro (what it does, and that the target drive
+  will be completely erased) below the banner before device detection
+  starts, and the "Attach the target USB drive now" prompt renders bold
+  bright-yellow on a tty so it stands out from surrounding status lines.
+
 ## 0.2.2
 
 - Fixed `write` crashing with an unhandled `parted` error ("unable to
