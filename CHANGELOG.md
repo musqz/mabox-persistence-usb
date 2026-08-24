@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1
+
+- Fixed a post-write verification bug: the ISO byte-range checksum was
+  re-hashed after `parted` appended the `MABOX_PERSIST` partition, which
+  rewrites the ISO's own embedded MBR partition table inside that same byte
+  range -- so `write` reported `verification failed` on every default write
+  (persistence enabled) with a `.sha256` sidecar next to the ISO, even
+  though the write itself was correct. The checksum is now hashed
+  immediately after the `dd` write, before partitioning touches the MBR.
+
 ## 0.2.0
 
 - `--encrypt-persist`: LUKS2-encrypts the `MABOX_PERSIST` overlay partition,
