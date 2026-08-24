@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.4
+
+- Fixed `write` occasionally crashing with parted's "unable to inform the
+  kernel of the change ... probably because it/they are in use" from our
+  own `partprobe` call right after the `dd` write -- most likely a desktop
+  automount daemon (udisks2/gvfs) racing to probe the device the instant
+  `dd` closes it. `partprobe` is now retried a few times with a short
+  delay at both call sites, and the post-`dd` partition-table reread
+  settles udev before its own `partprobe` too, not just after.
+
 ## 0.2.3
 
 - `write` now prints an intro (what it does, and that the target drive
