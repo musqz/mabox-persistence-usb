@@ -9,5 +9,6 @@ src/
 pkg/
 *.pkg.tar.zst
 *.pkg.tar.xz
+packaging/*.tar.gz
 CLAUDE.md
 claude.md

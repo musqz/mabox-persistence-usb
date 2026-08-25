@@ -1,7 +1,7 @@
 """Read-only ISO validation: ISO9660 volume-ID check, checksum verification,
-filename parsing, rootfs-encryption detection, and (future) persistence
-boot-hook support detection. Pure/streaming logic against the ISO file
-directly -- no mounting, no root needed.
+filename parsing, rootfs-encryption detection, and persistence boot-hook
+support detection. Pure/streaming logic against the ISO file directly --
+no mounting, no root needed.
 
 inspect_iso() is the thin executor (shells out to bsdtar); everything it
 calls is pure and unit-tested directly, same command-builder/executor split
