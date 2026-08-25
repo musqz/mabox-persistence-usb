@@ -69,9 +69,19 @@ ISO9660_VOLID_LENGTH = 32
 # not yet in a tagged mabox-snapshot release as of this tool's version).
 PERSIST_HOOK_MARKER_PATH = "mabox/.persist-hook-version"
 
-# Version 1: plain (unencrypted) MABOX_PERSIST support -- the merged
-# miso_persist hook overlays a plain ext4 partition found by label.
-MIN_SUPPORTED_HOOK_VERSION = 1
+# Treated as one monotonically-increasing cumulative-capability counter, not
+# independent flags (mirrors mabox_snapshot.constants.PERSIST_HOOK_VERSION's
+# own comment): v1 shipped miso_persist, but boot-device resolution always
+# picked the whole disk over any partition of the same device, so
+# MABOX_PERSIST never actually mounted at boot -- confirmed on real hardware.
+# v2 (mabox-snapshot 0.2.6) fixed that: miso_boot/miso_luks now prefer a
+# partition, and the ISO's own content partition survives
+# mabox-persistence-usb's own mkpart (see the 0x17 partition-type fix in the
+# same release) -- plain MABOX_PERSIST actually mounts read-write and
+# persists across reboot as of this version, confirmed end-to-end. An ISO
+# advertising v1 is therefore correctly refused: its persistence never
+# worked.
+MIN_SUPPORTED_HOOK_VERSION = 2
 
 # No shipped or merged mabox-snapshot version advertises this yet: the
 # merged miso_persist hook has no cryptsetup/LUKS-unlock branch at all, so it
@@ -82,7 +92,7 @@ MIN_SUPPORTED_HOOK_VERSION = 1
 # without conflating "supports plain persistence" with "supports encrypted
 # persistence" -- bump this only once mabox-snapshot ships and advertises a
 # real LUKS-unlock branch.
-MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION = 2
+MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION = 3
 
 # Physical remove/reinsert re-verification timing (safety.wait_for_reinsert).
 REINSERT_DISAPPEAR_TIMEOUT_S = 30.0
