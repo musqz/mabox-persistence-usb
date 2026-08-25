@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.7
+
+- Cleanup pass ahead of external review: fixed docs that still described
+  persistence as unverified/pending after 0.2.6 shipped it confirmed
+  working on real hardware (design spec, `isoinspect.py`, a
+  self-contradicting comment in `constants.py`, the man page), removed an
+  accidentally-committed stale 0.2.5 release tarball from git, removed an
+  unused import, and added a "Choosing a USB stick" README section. No
+  behavior changes.
+
 ## 0.2.6
 
 - `write` now requires marker version 2 (`MIN_SUPPORTED_HOOK_VERSION`), not
