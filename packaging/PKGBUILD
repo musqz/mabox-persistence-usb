@@ -1,6 +1,6 @@
 # Maintainer: musqz
 pkgname=mabox-persistence-usb
-pkgver=0.2.5
+pkgver=0.2.6
 pkgrel=1
 pkgdesc="Write a mabox-snapshot ISO to a USB stick with a persistent overlay partition"
 arch=('any')
@@ -21,7 +21,7 @@ optdepends=(
 makedepends=('python-build' 'python-installer' 'python-hatchling')
 checkdepends=('python-pytest')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('8668f8a4053349ae362a2dc8e8d52b80432a235f02c4e338798d943c99513c47')
+sha256sums=('PLACEHOLDER_UPDATE_AFTER_TAG_PUSH')
 
 build() {
     cd "$pkgname-$pkgver"
