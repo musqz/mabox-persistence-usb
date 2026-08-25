@@ -39,12 +39,27 @@ boot-device-resolution bug and a partition-table-overwrite bug). `--force`
 to create the partition anyway, or `--no-persist` for a plain
 non-persistent stick.
 
-`--encrypt-persist` has its own, stricter check: the merged `miso_persist`
-hook has no LUKS-unlock branch at all yet, so an encrypted `MABOX_PERSIST` is
-refused by default regardless of which mabox-snapshot built the ISO, until
+`--encrypt-persist` has its own, stricter check: the `miso_persist` hook has
+no LUKS-unlock branch at all yet, so an encrypted `MABOX_PERSIST` is refused
+by default regardless of which mabox-snapshot built the ISO, until
 mabox-snapshot ships one. See
-`docs/superpowers/specs/2026-08-20-persistent-usb-design.md` for the approved
-design.
+`docs/superpowers/specs/2026-08-20-persistent-usb-design.md` for the design.
+
+## Choosing a USB stick
+
+Persistence performance depends far more on the stick's **random 4K write**
+speed than on its advertised sequential MB/s. A cheap, phone-transfer-oriented
+drive (independently measured at ~0.01 MB/s random write) made a live session
+unusably slow even though the tool itself was working correctly — every write
+during the session (and every file overlayfs has to copy up before it can
+modify it) goes through the stick, so weak random-write performance shows up
+as constant, pervasive lag, not just a slow boot.
+
+Before trusting a stick for persistent use, look for one with published
+random-write numbers (not just sequential), or check an independent benchmark
+site — sequential-only marketing specs hide exactly this weakness. Dual-connector
+"OTG"/phone-transfer drives are usually the worst offenders; a dedicated USB
+3.x flash drive built for general storage is a safer bet.
 
 ## Installation
 

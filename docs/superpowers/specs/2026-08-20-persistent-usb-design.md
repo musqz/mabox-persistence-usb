@@ -2,8 +2,17 @@
 
 ## Status
 
-Design approved by user 2026-08-20. Not yet implemented. Supersedes the
-mount-detection-related open questions in the earlier brainstorm memory
+**Implemented and shipped.** Design approved by user 2026-08-20; the
+`write` command and `MABOX_PERSIST` partition layout shipped starting
+0.0.1, and two real-hardware bugs found while verifying the full chain
+end-to-end (a boot-device-resolution bug and an MBR partition-type bug,
+both in the sibling `mabox-snapshot` repo) were fixed and shipped there in
+0.2.5/0.2.6 — see `CHANGELOG.md` for both. As of 0.2.6, persistence is
+confirmed working end-to-end on real hardware: build, write, boot, and a
+change made in the live session survives a reboot. This document is kept
+for historical context (the original design rationale below still holds);
+it is no longer an open proposal. Supersedes the mount-detection-related
+open questions in the earlier brainstorm memory
 (`project-persistent-usb-brainstorm`) — see "Decisions" below for what changed
 and what's newly resolved.
 
@@ -144,13 +153,23 @@ what's being written.
 
 ## Open questions for the implementation plan (not blocking this spec)
 
+**All three resolved during implementation — kept below as historical
+record of what was actually decided, not as open items.**
+
 - Exact CLI shape for opting into persistence on `usb write` (a flag? a
   positional mode? always-on when the ISO was built a certain way?) — not decided
   in this brainstorm, left for the implementation-planning step.
+  **Resolved:** `write` creates `MABOX_PERSIST` by default whenever the
+  source ISO advertises hook support; `--no-persist` opts out,
+  `--encrypt-persist` opts into an encrypted overlay.
 - Exact command(s) for appending the new partition after the ISO's own content is
   already on the device (`sfdisk`/`parted`/`sgdisk` — which tool, exact invocation)
   — an implementation detail, not a design-level decision.
+  **Resolved:** `parted mkpart`, matched back by start offset after the
+  fact rather than by slot number (see `partition.py`).
 - Whether `--encrypt` (currently preserving-mode-only, LUKS2 on `rootfs.sfs`) has
   any interaction with a persistent overlay (e.g. should the overlay itself ever
   be encrypted too) — not raised or discussed this session; flag for a future
   brainstorm if it becomes relevant, don't block this feature on it.
+  **Resolved:** fully independent. `--encrypt` (rootfs, mabox-snapshot) and
+  `--encrypt-persist` (overlay, this repo) are separate, unrelated flags.

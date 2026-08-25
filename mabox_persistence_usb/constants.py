@@ -65,8 +65,8 @@ ISO9660_VOLID_LENGTH = 32
 # tree, parallel to isobuild.py's existing ".miso" marker convention, rather
 # than requiring this tool to decompress and walk the initramfs cpio. Matches
 # mabox_snapshot.constants.PERSIST_HOOK_MARKER_RELPATH /
-# PERSIST_HOOK_VERSION exactly (merged in mabox-snapshot PR #61, 2026-08-23 --
-# not yet in a tagged mabox-snapshot release as of this tool's version).
+# PERSIST_HOOK_VERSION exactly -- shipped in mabox-snapshot 0.2.6, which is a
+# tagged release as of this tool's own 0.2.6.
 PERSIST_HOOK_MARKER_PATH = "mabox/.persist-hook-version"
 
 # Treated as one monotonically-increasing cumulative-capability counter, not
