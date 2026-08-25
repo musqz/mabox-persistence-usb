@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.6
+
+- `write` now requires marker version 2 (`MIN_SUPPORTED_HOOK_VERSION`), not
+  1, to create a plain `MABOX_PERSIST` partition -- and version 3
+  (`MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION`) for `--encrypt-persist`. Version 1
+  ISOs are refused by default, not because anything changed here, but
+  because their persistence never actually worked at boot: mabox-snapshot
+  0.2.6 fixed the underlying `_find_dev_by_path()` boot-device-resolution
+  bug and a partition-table-overwrite bug that both silently broke every
+  `MABOX_PERSIST` write against earlier ISOs. Confirmed end-to-end on real
+  hardware this session: build a v2-marked ISO, `write` it, boot it,
+  persistence survives a reboot. `--force`/`--no-persist` still work as
+  before for anyone who wants to override the check.
+
 ## 0.2.5
 
 - Fixed `write` still failing on `partprobe`'s "unable to inform the kernel
