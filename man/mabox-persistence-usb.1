@@ -44,14 +44,6 @@ and
 .B \-\-no\-persist
 below) \(em its persistence never actually mounted at boot, due to bugs
 fixed in mabox-snapshot 0.2.6, not because the marker is merely absent.
-An encrypted
-.B MABOX_PERSIST
-(see
-.BR \-\-encrypt\-persist )
-is refused by default regardless of which mabox-snapshot built the ISO,
-since the merged
-.I miso_persist
-hook has no LUKS-unlock branch at all yet.
 .SH COMMANDS
 .SS version
 Print the installed version.
@@ -87,28 +79,10 @@ With
 .BR \-\-yes ,
 automatically unmount mounted partitions on the target instead of erroring.
 .TP
-.BR \-\-persist\-size " " \fISIZE\fR
-Cap the
-.B MABOX_PERSIST
-partition instead of using all remaining space (e.g.
-.IR 50GiB ).
-.TP
 .B \-\-no\-persist
 Write only the raw ISO bytes; skip creating
 .B MABOX_PERSIST
-entirely. Mutually exclusive with
-.BR \-\-encrypt\-persist .
-.TP
-.B \-\-encrypt\-persist
-LUKS2\-encrypt the
-.B MABOX_PERSIST
-partition, independently of whether the source ISO's own rootfs is
-encrypted \(em the two protect entirely different things and have no
-interaction. Always prompts interactively for a passphrase, even with
-.BR \-\-yes ;
-never reads one from a flag or environment variable. Mutually exclusive
-with
-.BR \-\-no\-persist .
+entirely.
 .TP
 .B \-\-force
 Bypass the ISO volume-ID soft check and the persistence boot-hook support

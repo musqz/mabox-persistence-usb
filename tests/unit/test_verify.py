@@ -35,13 +35,3 @@ def test_verify_persist_label_matches(monkeypatch):
 def test_verify_persist_label_mismatch(monkeypatch):
     monkeypatch.setattr(verify, "read_blkid_tag", lambda p, tag: "OTHER")
     assert verify.verify_persist_label("/dev/sdb3", "MABOX_PERSIST") is False
-
-
-def test_verify_persist_luks_matches(monkeypatch):
-    monkeypatch.setattr(verify, "read_blkid_tag", lambda p, tag: "crypto_LUKS")
-    assert verify.verify_persist_luks("/dev/sdb3") is True
-
-
-def test_verify_persist_luks_mismatch(monkeypatch):
-    monkeypatch.setattr(verify, "read_blkid_tag", lambda p, tag: "ext4")
-    assert verify.verify_persist_luks("/dev/sdb3") is False

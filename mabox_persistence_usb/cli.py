@@ -7,7 +7,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from . import __version__, constants, device, isoinspect, partition, persist_luks, privilege, safety, verify, writer
+from . import __version__, constants, device, isoinspect, partition, privilege, safety, verify, writer
 
 BANNER_ART = (
     "███╗   ███╗ █████╗ ██████╗  ██████╗ ██╗  ██╗\n"
@@ -55,11 +55,6 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
         else:
             print(f"[fail] {tool} not found")
             ok = False
-    for tool in constants.OPTIONAL_TOOLS:
-        if shutil.which(tool):
-            print(f"[ok]   {tool} found (optional)")
-        else:
-            print(f"[warn] {tool} not found (optional, needed for --encrypt-persist)")
 
     try:
         disks = device.list_removable_usb_disks()
@@ -105,8 +100,7 @@ def cmd_inspect(args: argparse.Namespace) -> int:
         print(f"checksum:         {report.checksum_path} ({'OK' if report.checksum_ok else 'MISMATCH'})")
     else:
         print("checksum:         no .sha256 sidecar found alongside the ISO")
-    print(f"persistence hook: {report.hook_support.value} (plain MABOX_PERSIST)")
-    print(f"persistence hook: {report.encrypted_hook_support.value} (--encrypt-persist)")
+    print(f"persistence hook: {report.hook_support.value}")
     return 0
 
 
@@ -168,21 +162,12 @@ def _cmd_write(args: argparse.Namespace) -> int:
         return 1
 
     if not args.no_persist:
-        if args.encrypt_persist:
-            required_support = report.encrypted_hook_support
-            unsupported_detail = (
-                "no mabox-snapshot build (released or otherwise) has a miso_persist LUKS-unlock "
-                "branch yet -- an encrypted MABOX_PERSIST cannot be used at boot regardless of "
-                "which mabox-snapshot built this ISO"
-            )
-        else:
-            required_support = report.hook_support
-            unsupported_detail = (
-                "this ISO's mabox-snapshot build predates miso_persist support -- rebuild with a "
-                "newer mabox-snapshot to enable persistence"
-            )
-        if required_support is not isoinspect.HookSupport.SUPPORTED:
-            verdict = required_support.value
+        unsupported_detail = (
+            "this ISO's mabox-snapshot build predates miso_persist support -- rebuild with a "
+            "newer mabox-snapshot to enable persistence"
+        )
+        if report.hook_support is not isoinspect.HookSupport.SUPPORTED:
+            verdict = report.hook_support.value
             if args.force:
                 print(
                     f"warning: {iso_path} does not advertise persistence support ({verdict}) -- "
@@ -219,23 +204,14 @@ def _cmd_write(args: argparse.Namespace) -> int:
 
     iso_size_bytes = iso_path.stat().st_size
     start = partition.compute_partition_start(iso_size_bytes)
-    try:
-        persist_size_bytes = partition.compute_persist_size_bytes(args.persist_size) if args.persist_size else None
-        end_spec = None if args.no_persist else partition.compute_partition_end_spec(start, persist_size_bytes, disk.size_bytes)
-    except ValueError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return 1
+    end_spec = None if args.no_persist else "100%"
 
     if args.dry_run:
         print(f"plan:    dd {iso_path} -> {disk.path}")
         print(f"plan:    {' '.join(writer.build_dd_write_command(iso_path, disk.path))}")
         if not args.no_persist:
             print(f"plan:    {' '.join(partition.build_parted_mkpart_command(disk.path, start, end_spec))}")
-            if args.encrypt_persist:
-                print("plan:    cryptsetup luksFormat + open (passphrase prompted interactively) on the newly appended partition")
-                print(f"plan:    mkfs.ext4 (label={constants.PERSIST_LABEL}) on /dev/mapper/{constants.PERSIST_LUKS_MAPPER_NAME}")
-            else:
-                print(f"plan:    mkfs.ext4 (label={constants.PERSIST_LABEL}) on the newly appended partition")
+            print(f"plan:    mkfs.ext4 (label={constants.PERSIST_LABEL}) on the newly appended partition")
         else:
             print("plan:    --no-persist -- no overlay partition will be created")
         return 0
@@ -276,14 +252,6 @@ def _cmd_write(args: argparse.Namespace) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 1
 
-    passphrase = None
-    if args.encrypt_persist:
-        try:
-            passphrase = persist_luks.prompt_for_passphrase()
-        except RuntimeError as e:
-            print(f"error: {e}", file=sys.stderr)
-            return 1
-
     print(f"writing {iso_path} to {disk.path} ...")
     writer.write_iso_to_device(iso_path, disk.path)
 
@@ -307,10 +275,7 @@ def _cmd_write(args: argparse.Namespace) -> int:
     if not args.no_persist:
         print("appending MABOX_PERSIST partition ...")
         new_partition = partition.append_persist_partition(disk.path, start, end_spec)
-        if args.encrypt_persist:
-            persist_luks.format_persist_encrypted(new_partition, passphrase)
-        else:
-            partition.format_persist_plain(new_partition)
+        partition.format_persist_plain(new_partition)
 
     print(f"done: {disk.path} written")
 
@@ -318,10 +283,7 @@ def _cmd_write(args: argparse.Namespace) -> int:
         print("verifying ...")
         problems = []
         if new_partition:
-            if args.encrypt_persist:
-                if not verify.verify_persist_luks(new_partition):
-                    problems.append(f"{new_partition} does not report TYPE=crypto_LUKS")
-            elif not verify.verify_persist_label(new_partition, constants.PERSIST_LABEL):
+            if not verify.verify_persist_label(new_partition, constants.PERSIST_LABEL):
                 problems.append(f"{new_partition} does not report label {constants.PERSIST_LABEL}")
         if report.checksum_path:
             expected = isoinspect.read_expected_checksum(report.checksum_path)
@@ -361,7 +323,6 @@ def build_parser() -> argparse.ArgumentParser:
             "example:\n"
             "  sudo mabox-persistence-usb write ./mabox-preserving-23-08-2026-1830.iso --dry-run\n"
             "  sudo mabox-persistence-usb write ./mabox-preserving-23-08-2026-1830.iso\n"
-            "  sudo mabox-persistence-usb write ./mabox-preserving-23-08-2026-1830.iso --encrypt-persist\n"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -379,19 +340,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="With --yes, auto-unmount mounted partitions on the target instead of erroring",
     )
     write_parser.add_argument(
-        "--persist-size",
-        help="Cap the MABOX_PERSIST partition instead of using all remaining space (e.g. 50GiB)",
-    )
-    persist_group = write_parser.add_mutually_exclusive_group()
-    persist_group.add_argument(
         "--no-persist", action="store_true",
         help="Write only the raw ISO bytes, skip creating MABOX_PERSIST entirely",
-    )
-    persist_group.add_argument(
-        "--encrypt-persist", action="store_true",
-        help="LUKS2-encrypt the MABOX_PERSIST partition, independently of whether the source "
-             "ISO's own rootfs is encrypted. Always prompts interactively for a passphrase, "
-             "even with --yes -- never via a flag or environment variable.",
     )
     write_parser.add_argument(
         "--force", action="store_true",

@@ -34,41 +34,6 @@ def compute_partition_start(iso_size_bytes: int, alignment: int = constants.PART
     return iso_size_bytes + (alignment - remainder)
 
 
-_SIZE_UNITS = {
-    "TiB": 1024**4, "GiB": 1024**3, "MiB": 1024**2, "KiB": 1024,
-    "TB": 1000**4, "GB": 1000**3, "MB": 1000**2, "KB": 1000,
-    "B": 1,
-}
-
-
-def compute_persist_size_bytes(size_spec: str) -> int:
-    """Parses a parted-style size string ('50GiB', '512MiB', a bare byte
-    count, ...) into bytes."""
-    size_spec = size_spec.strip()
-    for suffix in sorted(_SIZE_UNITS, key=len, reverse=True):
-        if size_spec.endswith(suffix):
-            number = size_spec[: -len(suffix)].strip()
-            return int(float(number) * _SIZE_UNITS[suffix])
-    return int(size_spec)
-
-
-def compute_partition_end_spec(start_bytes: int, persist_size_bytes: int | None, device_size_bytes: int) -> str:
-    """Returns a parted-compatible end position: '100%' when no explicit
-    size was requested (the default -- all remaining space), else an
-    absolute byte offset. Raises ValueError if an explicit size would not
-    fit on the device."""
-    if persist_size_bytes is None:
-        return "100%"
-    end = start_bytes + persist_size_bytes
-    if end > device_size_bytes:
-        shortfall = end - device_size_bytes
-        raise ValueError(
-            f"--persist-size does not fit: the device would need to be at least "
-            f"{shortfall} more bytes."
-        )
-    return f"{end}B"
-
-
 def build_parted_mkpart_command(device_path: str, start_bytes: int, end_spec: str) -> list[str]:
     return [
         "parted", "--script", "--align", "optimal", device_path,
@@ -136,37 +101,25 @@ def _clear_stale_holders(device_path: str) -> None:
     it re-mounts on sight. dd rewriting the disk makes its filesystem label
     (e.g. MABOX_LIVE) reappear, which the daemon treats as newly inserted
     removable media and auto-mounts again, even though the tool unmounted it
-    itself before writing. A previous run's --encrypt-persist overlay can
-    also still be open as /dev/mapper/PERSIST_LUKS_MAPPER_NAME from an
-    earlier session on this same stick -- device.py's lsblk parser
-    explicitly ignores dm-crypt 'crypt' children, so nothing upstream ever
-    notices or closes it. Either one holds a partition busy exactly the way
-    a manually-mounted partition would, which is what actually blocks the
+    itself before writing. That holds a partition busy exactly the way a
+    manually-mounted partition would, which is what actually blocks the
     kernel's BLKRRPART with "in use" -- no amount of waiting fixes it if
     something keeps re-grabbing the device, which is why a plain retry loop
     (and even a reboot, since the daemon just comes back) can fail forever.
     Best-effort throughout, deliberately swallowing OSError as well as a
-    failed command: there may be nothing to clear, and `umount`/`cryptsetup`
-    not being on PATH, or /proc/mounts being unreadable, should never abort
-    the retry loop that calls this."""
-    mapper_source = f"/dev/mapper/{constants.PERSIST_LUKS_MAPPER_NAME}"
+    failed command: there may be nothing to clear, and `umount` not being on
+    PATH, or /proc/mounts being unreadable, should never abort the retry
+    loop that calls this."""
     try:
         mounts = device.parse_proc_mounts(constants.PROC_MOUNTS_FILE.read_text())
     except OSError:
         mounts = []
     for mount_device, mountpoint in mounts:
-        if is_partition_of(mount_device, device_path) or mount_device == mapper_source:
+        if is_partition_of(mount_device, device_path):
             try:
                 subprocess.run(device.build_umount_command(mountpoint), check=False)
             except OSError:
                 pass
-    try:
-        subprocess.run(
-            ["cryptsetup", "close", constants.PERSIST_LUKS_MAPPER_NAME],
-            check=False, stderr=subprocess.DEVNULL,
-        )
-    except OSError:
-        pass
 
 
 def _partprobe_with_retry(
