@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Removed `--encrypt-persist` and `--persist-size`. Neither had a consumer:
+  no shipped or merged mabox-snapshot has a `miso_persist` LUKS-unlock
+  branch, so an encrypted `MABOX_PERSIST` was never usable at boot, and
+  `--persist-size` had no real-world need over the default (all remaining
+  space). `MABOX_PERSIST` is now always plain `ext4`, sized to all
+  remaining space. `persist_luks.py`, `verify.verify_persist_luks()`, and
+  the encrypted-hook-support check are gone with it. ISO inspection still
+  reports the source ISO's own rootfs encryption status (`inspect`,
+  informational only, unrelated to this).
+
 ## 0.2.7
 
 - Cleanup pass ahead of external review: fixed docs that still described

@@ -129,31 +129,3 @@ def test_evaluate_hook_support_unknown_when_marker_unparseable():
     members = [constants.PERSIST_HOOK_MARKER_PATH]
     result = isoinspect.evaluate_hook_support(members, extract_member=lambda m: "not-a-number")
     assert result is isoinspect.HookSupport.UNKNOWN
-
-
-def test_evaluate_hook_support_against_encrypted_threshold_unsupported_at_current_marker_version():
-    # As of mabox-snapshot 0.2.6, every ISO advertises marker version 2
-    # (boot-device-resolution fixed, plain persistence works, no
-    # LUKS-unlock branch yet) -- checked against
-    # MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION this must read UNSUPPORTED even
-    # though the same marker reads SUPPORTED for plain use. An ISO built
-    # before the boot fix (marker version 1) would read UNSUPPORTED for
-    # both plain and encrypted persistence now, not just encrypted -- see
-    # test_evaluate_hook_support_unsupported_when_version_below_minimum.
-    members = [constants.PERSIST_HOOK_MARKER_PATH]
-    result = isoinspect.evaluate_hook_support(
-        members,
-        extract_member=lambda m: str(constants.MIN_SUPPORTED_HOOK_VERSION),
-        min_version=constants.MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION,
-    )
-    assert result is isoinspect.HookSupport.UNSUPPORTED
-
-
-def test_evaluate_hook_support_against_encrypted_threshold_supported_once_version_bumped():
-    members = [constants.PERSIST_HOOK_MARKER_PATH]
-    result = isoinspect.evaluate_hook_support(
-        members,
-        extract_member=lambda m: str(constants.MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION),
-        min_version=constants.MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION,
-    )
-    assert result is isoinspect.HookSupport.SUPPORTED

@@ -16,33 +16,6 @@ def test_compute_partition_start_rounds_up_to_alignment():
     assert result % constants.PARTITION_ALIGNMENT_BYTES == 0
 
 
-@pytest.mark.parametrize(
-    "spec,expected",
-    [
-        ("50GiB", 50 * 1024**3),
-        ("512MiB", 512 * 1024**2),
-        ("1TiB", 1024**4),
-        ("1000", 1000),
-    ],
-)
-def test_compute_persist_size_bytes(spec, expected):
-    assert partition.compute_persist_size_bytes(spec) == expected
-
-
-def test_compute_partition_end_spec_defaults_to_100_percent():
-    assert partition.compute_partition_end_spec(1024, None, 10_000_000) == "100%"
-
-
-def test_compute_partition_end_spec_returns_absolute_offset_when_it_fits():
-    end = partition.compute_partition_end_spec(1000, 5000, 10_000)
-    assert end == "6000B"
-
-
-def test_compute_partition_end_spec_raises_when_it_does_not_fit():
-    with pytest.raises(ValueError, match="does not fit"):
-        partition.compute_partition_end_spec(1000, 50_000, 10_000)
-
-
 def test_build_parted_mkpart_command():
     cmd = partition.build_parted_mkpart_command("/dev/sdb", 1048576, "100%")
     assert cmd == [

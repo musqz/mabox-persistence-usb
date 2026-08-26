@@ -24,14 +24,6 @@ def verify_persist_label(partition_path: str, expected_label: str) -> bool:
     return read_blkid_tag(partition_path, "LABEL") == expected_label
 
 
-def verify_persist_luks(partition_path: str) -> bool:
-    """For --encrypt-persist: the ext4 LABEL is only visible while the LUKS
-    container is open (see persist_luks.format_persist_encrypted(), which
-    always closes it again), so post-write verification instead confirms
-    the partition itself reports the LUKS2 container type."""
-    return read_blkid_tag(partition_path, "TYPE") == "crypto_LUKS"
-
-
 def hash_device_prefix(device_path: str, length_bytes: int, chunk_size: int = 4 * 1024 * 1024) -> str:
     """Streams exactly length_bytes off the start of device_path and returns
     its sha256 hex digest -- used to re-verify the ISO's own bytes after

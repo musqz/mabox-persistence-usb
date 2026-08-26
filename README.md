@@ -14,12 +14,8 @@ explicitly identified, confirmed, and (interactively) physically re-verified.
 
 - `write <iso>` copies the ISO's raw bytes to a USB device exactly as its own
   hybrid BIOS/UEFI boot layout expects, then appends one more partition —
-  `ext4`, labeled `MABOX_PERSIST` — sized to all remaining free space (or
-  `--persist-size`) for a writable overlay.
-- `--encrypt-persist` LUKS2-encrypts that overlay partition, independently of
-  whether the source ISO's own rootfs was built with mabox-snapshot's
-  `--encrypt`. The two are unrelated: one protects the ISO's OS payload, the
-  other protects what you write to the stick after booting it.
+  `ext4`, labeled `MABOX_PERSIST` — sized to all remaining free space, for a
+  writable overlay.
 - Every `write` run wipes and rebuilds the whole device — there is no
   preserve-across-runs mode. Re-running `write` *is* the reset mechanism.
 - Works with source ISOs up to ~2TiB devices (the ISO's own hybrid layout
@@ -37,12 +33,7 @@ older than 0.2.6 (marker version 1) is refused by default -- its persistence
 never actually mounted at boot, due to two bugs fixed in 0.2.6 (a
 boot-device-resolution bug and a partition-table-overwrite bug). `--force`
 to create the partition anyway, or `--no-persist` for a plain
-non-persistent stick.
-
-`--encrypt-persist` has its own, stricter check: the `miso_persist` hook has
-no LUKS-unlock branch at all yet, so an encrypted `MABOX_PERSIST` is refused
-by default regardless of which mabox-snapshot built the ISO, until
-mabox-snapshot ships one. See
+non-persistent stick. See
 `docs/superpowers/specs/2026-08-20-persistent-usb-design.md` for the design.
 
 ## Choosing a USB stick

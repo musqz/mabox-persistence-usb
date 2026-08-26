@@ -4,7 +4,7 @@ from pathlib import Path
 
 # Must stay in sync by hand with mabox_snapshot.constants.ISO_VOLID -- the two
 # repos share no runtime code, so this is a single source of truth kept
-# identical across both, same precedent as ISO_LUKS_MAPPER_NAME below.
+# identical across both.
 ISO_VOLID = "MABOX_LIVE"
 
 # The overlay partition's fixed ext4 label. Never user-overridable -- the
@@ -12,16 +12,6 @@ ISO_VOLID = "MABOX_LIVE"
 # tagged release) looks it up by this exact label via
 # /dev/disk/by-label/MABOX_PERSIST.
 PERSIST_LABEL = "MABOX_PERSIST"
-
-# dm-crypt mapper name for an --encrypt-persist overlay. Hardcoded and must
-# match whatever a future miso_persist LUKS-unlock branch uses to
-# `cryptsetup open` it at boot -- same manual-sync-across-two-repos
-# precedent as mabox_snapshot.constants.ISO_LUKS_MAPPER_NAME ("mabox_rootfs").
-# No such branch exists yet: the merged miso_persist hook only looks for a
-# plain ext4 MABOX_PERSIST by label, so an --encrypt-persist stick is not
-# usable at boot until one is added (see MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION
-# below).
-PERSIST_LUKS_MAPPER_NAME = "mabox_persist"
 
 # 1 MiB alignment for the appended partition's start offset -- standard
 # practice for flash media, cheap relative to typical stick sizes.
@@ -40,7 +30,6 @@ REQUIRED_TOOLS = [
     "lsblk", "udevadm", "blkid", "parted", "partprobe",
     "mkfs.ext4", "dd", "sha256sum", "bsdtar",
 ]
-OPTIONAL_TOOLS = ["cryptsetup"]
 
 # Mountpoints that make a device "the currently running system" rather than
 # incidental/removable storage -- refuse outright if the target device hosts
@@ -82,17 +71,6 @@ PERSIST_HOOK_MARKER_PATH = "mabox/.persist-hook-version"
 # advertising v1 is therefore correctly refused: its persistence never
 # worked.
 MIN_SUPPORTED_HOOK_VERSION = 2
-
-# No shipped or merged mabox-snapshot version advertises this yet: the
-# merged miso_persist hook has no cryptsetup/LUKS-unlock branch at all, so it
-# cannot find or open an --encrypt-persist partition (which shows up as
-# TYPE=crypto_LUKS, not a labeled ext4 volume, until unlocked). Set one
-# version ahead of MIN_SUPPORTED_HOOK_VERSION so isoinspect.evaluate_hook_support()
-# correctly reports UNSUPPORTED for --encrypt-persist against every ISO today,
-# without conflating "supports plain persistence" with "supports encrypted
-# persistence" -- bump this only once mabox-snapshot ships and advertises a
-# real LUKS-unlock branch.
-MIN_SUPPORTED_ENCRYPTED_HOOK_VERSION = 3
 
 # Physical remove/reinsert re-verification timing (safety.wait_for_reinsert).
 REINSERT_DISAPPEAR_TIMEOUT_S = 30.0
