@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.8
 
 - Removed `--encrypt-persist` and `--persist-size`. Neither had a consumer:
   no shipped or merged mabox-snapshot has a `miso_persist` LUKS-unlock
