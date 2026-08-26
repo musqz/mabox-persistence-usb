@@ -17,6 +17,6 @@ pkgbase = mabox-persistence-usb
 	depends = coreutils
 	optdepends = bash-completion: tab-completion for the mabox-persistence-usb CLI
 	source = mabox-persistence-usb-0.2.8.tar.gz::https://github.com/musqz/mabox-persistence-usb/archive/refs/tags/v0.2.8.tar.gz
-	sha256sums = PLACEHOLDER_UPDATE_AFTER_TAG_PUSH
+	sha256sums = 7488095aa78fafb22165a64e62eab372c09b299150c2a2a43f086419c9e950cc
 
 pkgname = mabox-persistence-usb
