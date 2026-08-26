@@ -54,8 +54,7 @@ site — sequential-only marketing specs hide exactly this weakness. Dual-connec
 
 ## Installation
 
-Arch/Manjaro-based only (Mabox itself, or any Arch derivative with the same
-dependencies).
+### Mabox Linux Only
 
 ```sh
 git clone https://github.com/musqz/mabox-persistence-usb.git
