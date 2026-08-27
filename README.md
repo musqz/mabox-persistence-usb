@@ -56,6 +56,11 @@ site — sequential-only marketing specs hide exactly this weakness. Dual-connec
 
 ### Mabox Linux Only
 
+```
+pacman -S mabox-persistence-usb
+```
+
+Or manual with makepkg
 ```sh
 git clone https://github.com/musqz/mabox-persistence-usb.git
 cd mabox-persistence-usb/packaging
