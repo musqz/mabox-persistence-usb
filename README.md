@@ -4,7 +4,7 @@
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Mabox%20Linux-2f4f4f.svg)
 
-Write a [mabox-snapshot](https://maboxlinux.org/mabox-26-08-and-new-tools-for-system-remastering/) ISO to a USB
+Write a [mabox-persistence](https://maboxlinux.org/mabox-26-08-and-new-tools-for-system-remastering/) ISO to a USB
 stick, with a persistent overlay partition so changes made while running from
 the stick survive a reboot. CLI-only, Python, safety-first: it will not touch
 a drive unless it is certain that drive is a removable USB disk you have
