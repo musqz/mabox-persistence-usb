@@ -10,7 +10,7 @@ the stick survive a reboot. CLI-only, Python, safety-first: it will not touch
 a drive unless it is certain that drive is a removable USB disk you have
 explicitly identified, confirmed, and (interactively) physically re-verified.
 
-<img width="1267" height="713" alt="Image" src="https://github.com/user-attachments/assets/dda70c82-0c3d-4a4e-ae72-f22e035f0a20" />
+<img width="1267" height="713" alt="Screenshot" src="docs/screenshot.png" />
 
 ## What it does
 
