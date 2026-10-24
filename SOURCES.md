@@ -1,7 +1,7 @@
 # Sources
 
 Design and conventions in this repo are modeled directly on its sibling
-project, [mabox-snapshot](https://codeberg.org/linux-bird/mabox-snapshot) — the tool
+project, [mabox-snapshot](https://github.com/musqz/mabox-snapshot) — the tool
 that produces the ISOs this tool writes to USB. In particular:
 
 - `ISO_VOLID = "MABOX_LIVE"` (`mabox_persistence_usb/constants.py`) must stay

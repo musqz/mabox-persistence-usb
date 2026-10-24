@@ -12,7 +12,7 @@ requires-python = ">=3.11"
 authors = [{ name = "musqz" }]
 
 [project.urls]
-Homepage = "https://codeberg.org/linux-bird/mabox-persistence-usb"
+Homepage = "https://github.com/musqz/mabox-persistence-usb"
 
 [project.scripts]
 mabox-persistence-usb = "mabox_persistence_usb.cli:main"
