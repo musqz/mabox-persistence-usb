@@ -64,7 +64,7 @@ pacman -S mabox-persistence-usb
 
 Or manual with makepkg
 ```sh
-git clone https://codeberg.org/linux-bird/mabox-persistence-usb.git
+git clone https://github.com/musqz/mabox-persistence-usb.git
 cd mabox-persistence-usb/packaging
 makepkg -si
 ```
